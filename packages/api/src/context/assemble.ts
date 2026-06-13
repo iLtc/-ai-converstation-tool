@@ -2,12 +2,11 @@ import { ContextTooLargeError, NeedsManualSelectionError } from '../errors.js';
 import type { CuratedSession } from './curate.js';
 
 export interface AssembleInput {
-  system: string;
   timeline: string;          // incompressible
   current: string;           // incompressible (current session, full)
   priors: CuratedSession[];  // oldest -> newest
   budget: number;            // inputBudget(model)
-  /** Counts tokens of the assembled (system + userContent) text. */
+  /** Counts tokens of the assembled user content; the counter is expected to also account for the system prompt. */
   countText: (text: string) => Promise<number>;
 }
 
@@ -37,7 +36,7 @@ export async function assembleContext(input: AssembleInput): Promise<AssembleRes
     return buildWith(priorBlocks.join('\n\n') || '(none)');
   };
 
-  const total = async () => input.countText(input.system + '\n' + build());
+  const total = async () => input.countText(build());
 
   if ((await total()) <= input.budget) {
     return { userContent: build(), usedSummaryFor: [] };
@@ -54,7 +53,7 @@ export async function assembleContext(input: AssembleInput): Promise<AssembleRes
   // Still over budget with everything summarized. Is the incompressible part alone too big?
   // Measure the SAME formatted output build() produces, but with no prior sessions —
   // this is the floor below which compression cannot help.
-  const incompressible = input.system + '\n' + buildWith('(none)');
+  const incompressible = buildWith('(none)');
   if ((await input.countText(incompressible)) > input.budget) {
     throw new ContextTooLargeError(
       'Conversation timeline and current session alone exceed the model context budget',

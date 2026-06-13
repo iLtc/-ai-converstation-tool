@@ -16,7 +16,7 @@ function priors(): CuratedSession[] {
 describe('assembleContext', () => {
   it('keeps all priors full when everything fits', async () => {
     const res = await assembleContext({
-      system: '', timeline: 'T', current: 'C', priors: priors(),
+      timeline: 'T', current: 'C', priors: priors(),
       budget: 10_000, countText: charCounter,
     });
     expect(res.usedSummaryFor).toEqual([]);
@@ -25,7 +25,7 @@ describe('assembleContext', () => {
 
   it('summarizes the oldest prior first when over budget', async () => {
     const res = await assembleContext({
-      system: '', timeline: 'T', current: 'C', priors: priors(),
+      timeline: 'T', current: 'C', priors: priors(),
       budget: 270, countText: charCounter, // 270: all-full (317) doesn't fit, oldest-summarized (227) does
     });
     expect(res.usedSummaryFor).toEqual(['old']);
@@ -35,7 +35,7 @@ describe('assembleContext', () => {
 
   it('throws NeedsManualSelection when even all-summaries overflow but incompressible fits', async () => {
     await expect(assembleContext({
-      system: '', timeline: 'T', current: 'C', priors: priors(),
+      timeline: 'T', current: 'C', priors: priors(),
       budget: 100, countText: charCounter,
       // 100: even both-summarized (137) overflows, but the formatted incompressible baseline (81) fits
     })).rejects.toBeInstanceOf(NeedsManualSelectionError);
@@ -43,7 +43,7 @@ describe('assembleContext', () => {
 
   it('throws ContextTooLarge when timeline + current alone exceed budget', async () => {
     await expect(assembleContext({
-      system: '', timeline: 'X'.repeat(50), current: 'Y'.repeat(50), priors: [],
+      timeline: 'X'.repeat(50), current: 'Y'.repeat(50), priors: [],
       budget: 40, countText: charCounter, // 40: incompressible timeline+current (102) alone exceeds budget
     })).rejects.toBeInstanceOf(ContextTooLargeError);
   });

@@ -127,7 +127,6 @@ async function runAiRound(
   });
   const turns = sessionTurns(db, sessionId);
   const assembled = await assembleContext({
-    system,
     timeline: timelineText(db, session.conversationId),
     current: currentText(turns, extraInstruction),
     priors: priorCurated(db, session.conversationId, sessionId),
@@ -173,7 +172,15 @@ export async function openDraftSession(
   }).run();
 
   insertTurn(db, sessionId, { role: 'user', kind: 'brief', content: input.brief });
-  await runAiRound(db, userId, sessionId, deps);
+  try {
+    await runAiRound(db, userId, sessionId, deps);
+  } catch (err) {
+    // First AI round failed — remove the just-created session + its turns so the
+    // conversation isn't left with a dangling open session blocking new ones.
+    db.delete(draftTurns).where(eq(draftTurns.sessionId, sessionId)).run();
+    db.delete(draftSessions).where(eq(draftSessions.id, sessionId)).run();
+    throw err;
+  }
 
   const session = db.select().from(draftSessions).where(eq(draftSessions.id, sessionId)).get()!;
   return { session, turns: rawTurns(db, sessionId) };
@@ -208,29 +215,33 @@ export async function finalizeSession(db: DB, userId: string, sessionId: string,
   const me = db.select().from(participants)
     .where(and(eq(participants.conversationId, session.conversationId), eq(participants.role, 'me'))).get()!;
 
-  // Write the sent message onto the timeline.
-  const positions = db.select({ position: messages.position }).from(messages)
-    .where(eq(messages.conversationId, session.conversationId)).all().map((r) => r.position);
-  const sentMessageId = newId();
-  db.insert(messages).values({
-    id: sentMessageId, conversationId: session.conversationId, senderParticipantId: me.id,
-    body: draft.body, kind: 'live', status: 'sent',
-    position: nextPosition(positions), createdAt: new Date(),
-  }).run();
-
-  // For emails, persist the chosen subject on the conversation.
-  if (conv.type === 'email' && draft.subject) {
-    db.update(conversations).set({ emailSubject: draft.subject, updatedAt: new Date() })
-      .where(eq(conversations.id, session.conversationId)).run();
-  }
-
-  // Generate the summary from the curated triple using the conversation's model.
+  // Generate the summary BEFORE any writes: a provider failure here must leave the
+  // session open and the timeline untouched, so finalize can be retried safely
+  // without duplicating the sent message.
   const { model } = resolveProviderModel({ provider: conv.provider, model: conv.model }, deps.defaults);
   const summary = await generateSummary(deps.provider, model, renderSessionFull(turns));
 
-  db.update(draftSessions).set({
-    status: 'sent', sentMessageId, summary, closedAt: new Date(),
-  }).where(eq(draftSessions.id, sessionId)).run();
+  const positions = db.select({ position: messages.position }).from(messages)
+    .where(eq(messages.conversationId, session.conversationId)).all().map((r) => r.position);
+  const sentMessageId = newId();
+
+  // Write the sent message, optional email subject, and session close atomically.
+  db.transaction((tx) => {
+    tx.insert(messages).values({
+      id: sentMessageId, conversationId: session.conversationId, senderParticipantId: me.id,
+      body: draft.body, kind: 'live', status: 'sent',
+      position: nextPosition(positions), createdAt: new Date(),
+    }).run();
+
+    if (conv.type === 'email' && draft.subject) {
+      tx.update(conversations).set({ emailSubject: draft.subject, updatedAt: new Date() })
+        .where(eq(conversations.id, session.conversationId)).run();
+    }
+
+    tx.update(draftSessions).set({
+      status: 'sent', sentMessageId, summary, closedAt: new Date(),
+    }).where(eq(draftSessions.id, sessionId)).run();
+  });
 
   const updated = db.select().from(draftSessions).where(eq(draftSessions.id, sessionId)).get()!;
   return { session: updated };

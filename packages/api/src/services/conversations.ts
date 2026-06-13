@@ -2,13 +2,18 @@ import { and, eq } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { CreateConversationInput } from '@app/shared';
 import type { DB } from '../db/client.js';
-import { conversations, participants } from '../db/schema.js';
+import { conversations, participants, styleProfiles } from '../db/schema.js';
 import { NotFoundError } from '../errors.js';
 import { newId } from './ids.js';
 
 type CreateInput = z.infer<typeof CreateConversationInput>;
 
 export async function createConversation(db: DB, userId: string, input: CreateInput) {
+  if (input.styleProfileId) {
+    const owned = db.select().from(styleProfiles)
+      .where(and(eq(styleProfiles.id, input.styleProfileId), eq(styleProfiles.userId, userId))).get();
+    if (!owned) throw new NotFoundError('Style profile');
+  }
   const id = newId();
   const now = new Date();
   db.insert(conversations).values({

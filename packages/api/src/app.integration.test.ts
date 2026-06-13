@@ -3,6 +3,7 @@ import { createApp, type AppDeps } from './app.js';
 import { createTestDb } from './db/testDb.js';
 import type { Provider } from './providers/types.js';
 import type { RespondOutput } from '@app/shared';
+import { ProviderError } from './errors.js';
 
 /** Fake provider with a queue of respond outputs; char-length token counts. */
 function fakeProvider(queue: RespondOutput[]): Provider {
@@ -100,6 +101,47 @@ describe('full flow integration', () => {
     const res = await app.request('/conversations/does-not-exist');
     expect(res.status).toBe(404);
     expect((await json(res)).error.code).toBe('not_found');
+  });
+
+  it('finalize that fails during summary writes no sent message and leaves the session open', async () => {
+    const db = createTestDb();
+    const failing: Provider = {
+      name: 'anthropic',
+      complete: async () => ({ output: { draft: { body: 'ready to send' } }, provider: 'anthropic', model: 'claude-opus-4-8' }),
+      completeText: async () => { throw new ProviderError('summary failed', true); },
+      countTokens: async ({ system, messages }) =>
+        system.length + messages.reduce((n, m) => n + m.content.length, 0),
+    };
+    const app = createApp({
+      db, providerFactory: () => failing,
+      defaults: { provider: 'anthropic', model: 'claude-opus-4-8' }, userId: 'u1',
+    });
+
+    const conv = await json(await app.request('/conversations', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'C', type: 'chat' }),
+    }));
+    const opened = await json(await app.request(`/conversations/${conv.id}/draft-sessions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ brief: { goal: 'g' } }),
+    }));
+
+    const res = await app.request(`/draft-sessions/${opened.session.id}/finalize`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+    });
+    expect(res.status).toBe(502); // ProviderError -> 502
+    expect((await json(res)).error.code).toBe('provider_error');
+
+    // No sent message was written to the timeline.
+    const msgs = await json(await app.request(`/conversations/${conv.id}/messages`));
+    expect(msgs.some((m: any) => m.status === 'sent')).toBe(false);
+
+    // The session is still open, so a second open attempt is rejected with 409.
+    const second = await app.request(`/conversations/${conv.id}/draft-sessions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ brief: { goal: 'g2' } }),
+    });
+    expect(second.status).toBe(409);
   });
 
   it('returns 400 with a validation_error envelope (incl. details) for an invalid body', async () => {
