@@ -19,5 +19,6 @@ describe('positions', () => {
 
   it('throws when the gap is exhausted', () => {
     expect(() => positionBetween(100, 101)).toThrow(/renumber/i);
+    expect(() => positionBetween(null, 0)).toThrow(/renumber/i);
   });
 });

@@ -9,7 +9,13 @@ export function nextPosition(existing: number[]): number {
 /** A position strictly between `before` and `after` (null = open end). */
 export function positionBetween(before: number | null, after: number | null): number {
   if (before == null && after == null) return POSITION_GAP;
-  if (before == null) return Math.floor(after! / 2);
+  if (before == null) {
+    const pos = Math.floor(after! / 2);
+    if (pos >= after!) {
+      throw new Error('Position gap exhausted; renumbering required');
+    }
+    return pos;
+  }
   if (after == null) return before + POSITION_GAP;
   const mid = Math.floor((before + after) / 2);
   if (mid <= before) {
