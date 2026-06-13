@@ -94,4 +94,23 @@ describe('full flow integration', () => {
     expect(res.status).toBe(409);
     expect((await json(res)).error.code).toBe('conflict');
   });
+
+  it('returns 404 with a not_found envelope for a missing conversation', async () => {
+    const app = makeApp([]);
+    const res = await app.request('/conversations/does-not-exist');
+    expect(res.status).toBe(404);
+    expect((await json(res)).error.code).toBe('not_found');
+  });
+
+  it('returns 400 with a validation_error envelope (incl. details) for an invalid body', async () => {
+    const app = makeApp([]);
+    const res = await app.request('/conversations', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}), // missing required title/type
+    });
+    expect(res.status).toBe(400);
+    const body = await json(res);
+    expect(body.error.code).toBe('validation_error');
+    expect(body.error.details).toBeTruthy();
+  });
 });

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { OpenDraftSessionInput, AddFollowupInput, EditDraftInput } from '@app/shared';
 import type { AppContext } from '../app.js';
 import { draftDepsFor } from '../app.js';
@@ -12,7 +13,7 @@ import { eq } from 'drizzle-orm';
 import { NotFoundError } from '../errors.js';
 
 /** Loads a session's conversation overrides so we can pick the right provider. */
-async function overridesForSession(c: any, sessionId: string) {
+async function overridesForSession(c: Context<AppContext>, sessionId: string) {
   const db = c.get('deps').db;
   const session = db.select().from(draftSessions).where(eq(draftSessions.id, sessionId)).get();
   if (!session) throw new NotFoundError('Draft session');

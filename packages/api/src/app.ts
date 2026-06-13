@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { AppError } from './errors.js';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import { AppError, ValidationError, ProviderError, NeedsManualSelectionError } from './errors.js';
 import { DEFAULT_USER_ID } from './config.js';
 import type { DB } from './db/client.js';
 import type { ProviderFactory } from './providers/registry.js';
@@ -31,10 +32,11 @@ export function createApp(deps: AppDeps): Hono<AppContext> {
 
   app.onError((err, c) => {
     if (err instanceof AppError) {
-      return c.json(
-        { error: { code: err.code, message: err.message, details: (err as any).details } },
-        err.status as any,
-      );
+      const extra: Record<string, unknown> = {};
+      if (err instanceof ValidationError) extra.details = err.details;
+      if (err instanceof ProviderError) extra.retryable = err.retryable;
+      if (err instanceof NeedsManualSelectionError) extra.sessionIds = err.sessionIds;
+      return c.json({ error: { code: err.code, message: err.message, ...extra } }, err.status as ContentfulStatusCode);
     }
     console.error(err);
     return c.json({ error: { code: 'internal', message: 'Internal error' } }, 500);
