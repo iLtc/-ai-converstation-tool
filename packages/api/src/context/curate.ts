@@ -1,4 +1,4 @@
-import { renderBrief, renderAnswers, renderDraft, latestDraft, type RenderTurn } from './render.js';
+import { renderBrief, renderAnswers, renderDraft, latestDraftOrEdit, type RenderTurn } from './render.js';
 import type { BriefContent, AnswersContent } from '@app/shared';
 
 export interface CuratedSession {
@@ -21,9 +21,11 @@ export function curateSession(input: CurateInput): CuratedSession {
   if (input.summary == null) {
     throw new Error(`Prior session ${input.sessionId} has no summary; cannot curate for context`);
   }
+  // A session has at most one brief and one answers turn, so find() (first match) is correct;
+  // only the draft/edit turn can repeat, which is why latestDraftOrEdit scans in reverse.
   const brief = input.turns.find((t) => t.kind === 'brief');
   const answers = input.turns.find((t) => t.kind === 'answers');
-  const draft = latestDraft(input.turns);
+  const draft = latestDraftOrEdit(input.turns);
 
   const sections: string[] = [];
   if (brief) sections.push(`[Brief]\n${renderBrief(brief.content as BriefContent)}`);

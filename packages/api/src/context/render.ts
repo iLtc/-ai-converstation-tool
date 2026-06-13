@@ -1,6 +1,4 @@
-import type {
-  BriefContent, AnswersContent, DraftContent, FollowupContent,
-} from '@app/shared';
+import type { Role, BriefContent, AnswersContent, DraftContent, FollowupContent } from '@app/shared';
 
 export interface RenderTurn {
   kind: string;
@@ -23,7 +21,7 @@ export function renderDraft(d: DraftContent): string {
 }
 
 /** Latest draft- or edit-kind turn in a turn list, or null. */
-export function latestDraft(turns: RenderTurn[]): DraftContent | null {
+export function latestDraftOrEdit(turns: RenderTurn[]): DraftContent | null {
   for (let i = turns.length - 1; i >= 0; i--) {
     const t = turns[i]!;
     if (t.kind === 'draft' || t.kind === 'edit') return t.content as DraftContent;
@@ -33,7 +31,7 @@ export function latestDraft(turns: RenderTurn[]): DraftContent | null {
 
 /** Renders the real message timeline. */
 export function renderTimeline(
-  messages: { body: string; senderRole: 'me' | 'them'; displayName: string }[],
+  messages: { body: string; senderRole: Role; displayName: string }[],
 ): string {
   if (messages.length === 0) return '(no prior messages)';
   return messages.map((m) => `${m.displayName} (${m.senderRole}): ${m.body}`).join('\n');

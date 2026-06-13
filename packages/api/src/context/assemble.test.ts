@@ -36,7 +36,8 @@ describe('assembleContext', () => {
   it('throws NeedsManualSelection when even all-summaries overflow but incompressible fits', async () => {
     await expect(assembleContext({
       system: '', timeline: 'T', current: 'C', priors: priors(),
-      budget: 50, countText: charCounter, // 50: even both-summarized (137) overflows, but incompressible (4) fits
+      budget: 100, countText: charCounter,
+      // 100: even both-summarized (137) overflows, but the formatted incompressible baseline (81) fits
     })).rejects.toBeInstanceOf(NeedsManualSelectionError);
   });
 

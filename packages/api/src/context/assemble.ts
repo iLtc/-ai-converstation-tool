@@ -24,15 +24,17 @@ export async function assembleContext(input: AssembleInput): Promise<AssembleRes
   // false = full, true = summarized. Start all full.
   const summarized = input.priors.map(() => false);
 
+  const buildWith = (priorSection: string) => [
+    '[Conversation timeline]', input.timeline,
+    '', '[Prior drafting sessions]', priorSection,
+    '', '[Current session]', input.current,
+  ].join('\n');
+
   const build = () => {
     const priorBlocks = input.priors.map((p, i) =>
       `[Prior session ${p.sessionId}]\n${summarized[i] ? p.summary : p.full}`,
     );
-    return [
-      '[Conversation timeline]', input.timeline,
-      '', '[Prior drafting sessions]', priorBlocks.join('\n\n') || '(none)',
-      '', '[Current session]', input.current,
-    ].join('\n');
+    return buildWith(priorBlocks.join('\n\n') || '(none)');
   };
 
   const total = async () => input.countText(input.system + '\n' + build());
@@ -50,7 +52,9 @@ export async function assembleContext(input: AssembleInput): Promise<AssembleRes
   }
 
   // Still over budget with everything summarized. Is the incompressible part alone too big?
-  const incompressible = [input.system, input.timeline, input.current].join('\n');
+  // Measure the SAME formatted output build() produces, but with no prior sessions —
+  // this is the floor below which compression cannot help.
+  const incompressible = input.system + '\n' + buildWith('(none)');
   if ((await input.countText(incompressible)) > input.budget) {
     throw new ContextTooLargeError(
       'Conversation timeline and current session alone exceed the model context budget',
