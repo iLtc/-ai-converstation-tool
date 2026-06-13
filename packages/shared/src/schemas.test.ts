@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DraftContent, BriefContent, RespondOutput, contentSchemaForKind,
+  DraftContent, BriefContent, AnswersContent, FollowupContent, RespondOutput, contentSchemaForKind,
 } from './schemas.js';
 
 describe('content schemas', () => {
@@ -23,7 +23,11 @@ describe('content schemas', () => {
     expect(out.answers).toBeUndefined();
   });
 
-  it('maps kind to the right content schema', () => {
+  it('maps kind to the right content schema (incl. draft/edit fall-through)', () => {
+    expect(contentSchemaForKind('brief')).toBe(BriefContent);
+    expect(contentSchemaForKind('answers')).toBe(AnswersContent);
+    expect(contentSchemaForKind('draft')).toBe(DraftContent);
     expect(contentSchemaForKind('edit')).toBe(DraftContent);
+    expect(contentSchemaForKind('followup')).toBe(FollowupContent);
   });
 });

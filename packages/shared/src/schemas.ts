@@ -12,6 +12,10 @@ export const DraftTurnKind = z.enum(['brief', 'answers', 'draft', 'edit', 'follo
 export type Role = z.infer<typeof Role>;
 export type ConversationType = z.infer<typeof ConversationType>;
 export type DraftTurnKind = z.infer<typeof DraftTurnKind>;
+export type MessageKind = z.infer<typeof MessageKind>;
+export type MessageStatus = z.infer<typeof MessageStatus>;
+export type DraftSessionStatus = z.infer<typeof DraftSessionStatus>;
+export type DraftTurnRole = z.infer<typeof DraftTurnRole>;
 
 // ---- Per-kind content shapes (draft_turns.content is JSON) ----
 export const BriefContent = z.object({
@@ -24,6 +28,8 @@ export const DraftContent = z.object({
   subject: z.string().optional(),
   body: z.string().min(1),
 });
+// The stored followup turn holds the user's instruction text under `text`.
+// The API accepts it as `instruction` (see AddFollowupInput); the service maps instruction -> { text }.
 export const FollowupContent = z.object({ text: z.string().min(1) });
 
 export type BriefContent = z.infer<typeof BriefContent>;
