@@ -15,7 +15,11 @@ function makeHarness(): ContractHarness {
         }
         return { content: [{ type: 'text', text }] };
       },
-      countTokens: async (_req: any) => ({ input_tokens: 42 }),
+    },
+    beta: {
+      messages: {
+        countTokens: async (_req: any) => ({ input_tokens: 42 }),
+      },
     },
   };
   const provider = new AnthropicProvider(client);

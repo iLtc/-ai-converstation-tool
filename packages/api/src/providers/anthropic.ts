@@ -10,7 +10,7 @@ import type {
 
 export class AnthropicProvider implements Provider {
   readonly name = 'anthropic' as const;
-  constructor(private readonly client: Pick<Anthropic, 'messages'>) {}
+  constructor(private readonly client: Pick<Anthropic, 'messages' | 'beta'>) {}
 
   async complete(req: CompleteRequest): Promise<CompleteResult> {
     let res: any;
@@ -56,7 +56,7 @@ export class AnthropicProvider implements Provider {
 
   async countTokens(input: CountTokensInput): Promise<number> {
     try {
-      const res = await this.client.messages.countTokens({
+      const res = await this.client.beta.messages.countTokens({
         model: input.model,
         system: input.system,
         messages: input.messages.map((m) => ({ role: m.role, content: m.content })),
