@@ -26,7 +26,7 @@ describe('assembleContext', () => {
   it('summarizes the oldest prior first when over budget', async () => {
     const res = await assembleContext({
       system: '', timeline: 'T', current: 'C', priors: priors(),
-      budget: 130, countText: charCounter,
+      budget: 270, countText: charCounter, // 270: all-full (317) doesn't fit, oldest-summarized (227) does
     });
     expect(res.usedSummaryFor).toEqual(['old']);
     expect(res.userContent).toContain('S'.repeat(10)); // old summarized
@@ -36,14 +36,14 @@ describe('assembleContext', () => {
   it('throws NeedsManualSelection when even all-summaries overflow but incompressible fits', async () => {
     await expect(assembleContext({
       system: '', timeline: 'T', current: 'C', priors: priors(),
-      budget: 25, countText: charCounter,
+      budget: 50, countText: charCounter, // 50: even both-summarized (137) overflows, but incompressible (4) fits
     })).rejects.toBeInstanceOf(NeedsManualSelectionError);
   });
 
   it('throws ContextTooLarge when timeline + current alone exceed budget', async () => {
     await expect(assembleContext({
       system: '', timeline: 'X'.repeat(50), current: 'Y'.repeat(50), priors: [],
-      budget: 40, countText: charCounter,
+      budget: 40, countText: charCounter, // 40: incompressible timeline+current (102) alone exceeds budget
     })).rejects.toBeInstanceOf(ContextTooLargeError);
   });
 });

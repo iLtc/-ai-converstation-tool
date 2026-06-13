@@ -26,9 +26,13 @@ export async function assembleContext(input: AssembleInput): Promise<AssembleRes
 
   const build = () => {
     const priorBlocks = input.priors.map((p, i) =>
-      summarized[i] ? p.summary : p.full,
+      `[Prior session ${p.sessionId}]\n${summarized[i] ? p.summary : p.full}`,
     );
-    return [input.timeline, priorBlocks.join('\n\n') || '(none)', input.current].join('\n\n');
+    return [
+      '[Conversation timeline]', input.timeline,
+      '', '[Prior drafting sessions]', priorBlocks.join('\n\n') || '(none)',
+      '', '[Current session]', input.current,
+    ].join('\n');
   };
 
   const total = async () => input.countText(input.system + '\n' + build());
