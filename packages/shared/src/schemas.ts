@@ -1,0 +1,86 @@
+import { z } from 'zod';
+
+// ---- Enums ----
+export const Role = z.enum(['me', 'them']);
+export const ConversationType = z.enum(['chat', 'email']);
+export const MessageKind = z.enum(['reconstructed', 'live']);
+export const MessageStatus = z.enum(['received', 'sent']);
+export const DraftSessionStatus = z.enum(['open', 'sent', 'abandoned']);
+export const DraftTurnRole = z.enum(['user', 'assistant']);
+export const DraftTurnKind = z.enum(['brief', 'answers', 'draft', 'edit', 'followup']);
+
+export type Role = z.infer<typeof Role>;
+export type ConversationType = z.infer<typeof ConversationType>;
+export type DraftTurnKind = z.infer<typeof DraftTurnKind>;
+
+// ---- Per-kind content shapes (draft_turns.content is JSON) ----
+export const BriefContent = z.object({
+  goal: z.string().min(1),
+  background: z.string().optional(),
+  questions: z.string().optional(),
+});
+export const AnswersContent = z.object({ items: z.array(z.string()) });
+export const DraftContent = z.object({
+  subject: z.string().optional(),
+  body: z.string().min(1),
+});
+export const FollowupContent = z.object({ text: z.string().min(1) });
+
+export type BriefContent = z.infer<typeof BriefContent>;
+export type AnswersContent = z.infer<typeof AnswersContent>;
+export type DraftContent = z.infer<typeof DraftContent>;
+export type FollowupContent = z.infer<typeof FollowupContent>;
+
+/** Returns the zod schema that validates a draft_turn's content for a given kind. */
+export function contentSchemaForKind(kind: DraftTurnKind) {
+  switch (kind) {
+    case 'brief': return BriefContent;
+    case 'answers': return AnswersContent;
+    case 'draft':
+    case 'edit': return DraftContent;
+    case 'followup': return FollowupContent;
+  }
+}
+
+// ---- Forced AI tool output ----
+export const RespondOutput = z.object({
+  answers: AnswersContent.optional(),
+  draft: DraftContent,
+});
+export type RespondOutput = z.infer<typeof RespondOutput>;
+
+// ---- API request DTOs ----
+export const CreateConversationInput = z.object({
+  title: z.string().min(1),
+  type: ConversationType,
+  emailSubject: z.string().optional(),
+  toneNote: z.string().optional(),
+  styleProfileId: z.string().optional(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  theirName: z.string().optional(),
+  myName: z.string().optional(),
+});
+
+export const AddMessageInput = z.object({
+  senderRole: Role,
+  body: z.string().min(1),
+  kind: MessageKind.default('reconstructed'),
+  status: MessageStatus.optional(),
+  afterMessageId: z.string().optional(),
+});
+
+export const UpdateMessageInput = z.object({ body: z.string().min(1) });
+export const ReorderMessageInput = z.object({
+  afterMessageId: z.string().nullable(),
+});
+
+export const OpenDraftSessionInput = z.object({ brief: BriefContent });
+export const AddFollowupInput = z.object({ instruction: z.string().min(1) });
+export const EditDraftInput = z.object({ draft: DraftContent });
+
+export const CreateStyleProfileInput = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  instructions: z.string().min(1),
+});
