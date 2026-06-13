@@ -179,6 +179,8 @@ which sessions to include.
 ## Open Questions / Future
 
 - Multi-party conversations (schema already accommodates).
+- Shared `contacts` entity so the same person across multiple conversations can
+  be linked and given a per-contact profile (additive, no migration needed).
 - Style learning from sent messages.
 - Streaming AI responses to the UI.
 - Native desktop client reusing the API.
