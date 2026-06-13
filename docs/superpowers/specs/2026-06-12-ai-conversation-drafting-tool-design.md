@@ -1,7 +1,7 @@
 # AI Conversation Drafting Tool — Design
 
 **Date:** 2026-06-12
-**Status:** Approved (design, revised after design review); pending implementation plan
+**Status:** Approved (design, revised after design review and 2026-06-13 spec review); pending implementation plan
 
 ## Overview
 
@@ -67,7 +67,13 @@ operations the app needs so no other code touches a vendor SDK:
 - `countTokens(input)` — token count for context budgeting. Backed by the
   provider's real token-count API (acceptable inside the compression loop given
   short conversations; see Decisions from design review).
-- Model/budget metadata (context window size and `output_reserve` per model).
+- Model/budget metadata (context window size and `output_reserve` per model),
+  read from a **static config map keyed by model id**, checked in with the code
+  (not in the DB, not user-editable). `safety_margin` is a single global
+  constant. If a conversation references a model id absent from the map, the
+  server **fails loud** with a clear "unknown model — add it to the config"
+  error rather than guessing a context window (a wrong guess silently corrupts
+  the compression math).
 
 Provider and model are selectable globally (config/env defaults) and overridable
 per conversation, and may be switched freely mid-conversation. Each AI-generated
@@ -103,6 +109,9 @@ Drizzle schema. All user-owned rows carry a `user_id` for namespacing.
   questions), `summary` (nullable, generated on send, user-editable),
   `sent_message_id` (nullable until sent), `created_at`, `closed_at`. The
   ordered drafting history lives in `draft_turns`, not a JSON blob.
+  **At most one `open` session per conversation** — composing is one outgoing
+  message at a time. A new session cannot open while another is `open`; the
+  current one must be sent or abandoned first.
 - **`draft_turns`** — `id`, `session_id`, `position`, `role`
   (`user` | `assistant`), `kind`
   (`brief` | `answers` | `draft` | `edit` | `followup`), `content`,
@@ -112,6 +121,16 @@ Drizzle schema. All user-owned rows carry a `user_id` for namespacing.
   Session order across the conversation derives from the resulting sent
   message's `position` (and `created_at` for a still-open session); no explicit
   anchor column.
+  **`content` is a JSON column whose shape is keyed by `kind`**, so structured
+  payloads stay first-class rather than being flattened to prose and reparsed:
+  - `brief` → `{ goal, background?, questions? }`
+  - `answers` → `{ items: [...] }` (the AI's answers to the user's questions)
+  - `draft` / `edit` → `{ subject?, body }` (`subject` used for `email`
+    conversations; `edit` is a user hand-edit with the same shape as `draft`)
+  - `followup` → `{ text }` (the user's follow-up instruction)
+  This mirrors the forced `respond({ answers?, draft })` tool output, so an
+  AI turn's structure is stored directly, and a revision round can re-feed the
+  current draft's `subject`/`body` to the model without parsing prose.
 - **`style_profiles`** — `id`, `user_id`, `name`, `description`,
   `instructions` (voice guidance), reusable across conversations.
 
@@ -158,20 +177,32 @@ On open, the user either:
 5. On **finalize**, the server writes a `sent` message to the timeline,
    generates a summary of the session (using the conversation's selected model;
    generated once, not auto-regenerated, but user-editable), and marks the
-   session `sent`.
+   session `sent`. The summary compresses exactly the session's **curated
+   triple** (brief + answers + final draft), so it is a faithful shrink of what
+   it later stands in for under context pressure.
 
 ### Their reply
 
-The user pastes the reply as a `them` message, opens a new draft session, and
-the loop repeats.
+The user pastes the reply as a `them` message (`kind = live`,
+`status = received`), opens a new draft session, and the loop repeats.
+`kind = reconstructed` is reserved for the initial backfill of pre-existing
+history; `kind = live` covers anything added once the conversation is active —
+both the user's own `sent` messages and the other party's pasted replies.
 
 ### Context assembly with sliding compression
 
 Prior draft-session context is **curated**, not the literal turn-by-turn log:
 for each past session the server feeds **brief + AI answers + final draft**, and
-excludes intermediate draft versions and edit churn (the actual sent message is
-already on the timeline). The *current* session is always sent in full.
-**Abandoned sessions are fully excluded** from future context.
+excludes intermediate draft versions and edit churn. The *current* session is
+always sent in full. **Abandoned sessions are fully excluded** from future
+context.
+
+The **final draft** is fed even though the `sent` message is already on the
+timeline, and this is deliberate: the user almost always hand-edits before
+sending, so the sent message routinely **drifts** from the AI's final draft.
+Feeding the original draft preserves what the AI actually produced (its
+reasoning trail), which the edited timeline message no longer reflects. The
+redundancy when there is no drift is cheap.
 
 Before each AI call the server counts tokens via the provider layer. The input
 budget is **`context_window − output_reserve − safety_margin`** (the
@@ -264,6 +295,28 @@ Deferred (known limitations, acceptable for personal single-user use):
 - **User-header trust deferred.** A single constant `user_id` is used for now;
   the `user_id` column and namespacing stay in place for the future multi-user
   extension, but `DEFAULT_USER_ID` / `TRUST_USER_HEADER` handling is not built.
+
+## Decisions from spec review (2026-06-13)
+
+Clarifications resolved before writing the implementation plan:
+
+- **One open draft session per conversation** — at most one `open`
+  `draft_session` at a time; the current one must be sent or abandoned before a
+  new one opens. Composing is one outgoing message at a time.
+- **`draft_turns.content` is JSON, shaped by `kind`** (`brief`/`answers`/
+  `draft`/`edit`/`followup`) rather than a single text column — keeps email
+  subject, the AI's answers, and the draft body first-class and mirrors the
+  `respond({ answers?, draft })` tool output, so revision rounds re-feed the
+  current draft without parsing prose.
+- **Final draft stays in curated context** despite the timeline already holding
+  the sent message — the user almost always edits before sending, so drift is
+  the common case and the AI's original draft carries information the edited
+  timeline message no longer does.
+- **Model metadata in a static, code-checked config map**; unknown model id
+  **fails loud** rather than guessing a context window.
+- **Summary compresses the curated triple** (brief + answers + final draft).
+- **Pasted replies are `kind = live`**; `reconstructed` is only the initial
+  history backfill.
 
 ## Open Questions / Future
 
