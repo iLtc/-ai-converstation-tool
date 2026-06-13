@@ -13,6 +13,18 @@ export interface CurateInput {
   turns: RenderTurn[];
 }
 
+/** Renders a session's curated triple: brief + AI answers + final draft (only present sections). */
+export function renderSessionFull(turns: RenderTurn[]): string {
+  const brief = turns.find((t) => t.kind === 'brief');
+  const answers = turns.find((t) => t.kind === 'answers');
+  const draft = latestDraftOrEdit(turns);
+  const sections: string[] = [];
+  if (brief) sections.push(`[Brief]\n${renderBrief(brief.content as BriefContent)}`);
+  if (answers) sections.push(`[AI answers]\n${renderAnswers(answers.content as AnswersContent)}`);
+  if (draft) sections.push(`[Final draft]\n${renderDraft(draft)}`);
+  return sections.join('\n\n');
+}
+
 /**
  * Curates a *prior* (sent) draft session into brief + answers + final draft,
  * excluding intermediate revisions. Priors always have a summary.
@@ -21,16 +33,5 @@ export function curateSession(input: CurateInput): CuratedSession {
   if (input.summary == null) {
     throw new Error(`Prior session ${input.sessionId} has no summary; cannot curate for context`);
   }
-  // A session has at most one brief and one answers turn, so find() (first match) is correct;
-  // only the draft/edit turn can repeat, which is why latestDraftOrEdit scans in reverse.
-  const brief = input.turns.find((t) => t.kind === 'brief');
-  const answers = input.turns.find((t) => t.kind === 'answers');
-  const draft = latestDraftOrEdit(input.turns);
-
-  const sections: string[] = [];
-  if (brief) sections.push(`[Brief]\n${renderBrief(brief.content as BriefContent)}`);
-  if (answers) sections.push(`[AI answers]\n${renderAnswers(answers.content as AnswersContent)}`);
-  if (draft) sections.push(`[Final draft]\n${renderDraft(draft)}`);
-
-  return { sessionId: input.sessionId, full: sections.join('\n\n'), summary: input.summary };
+  return { sessionId: input.sessionId, full: renderSessionFull(input.turns), summary: input.summary };
 }

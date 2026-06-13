@@ -14,7 +14,7 @@ import { resolveProviderModel } from '../providers/registry.js';
 import { inputBudget, getModelMeta } from '../providers/modelConfig.js';
 import { buildSystemPrompt } from '../context/systemPrompt.js';
 import { assembleContext } from '../context/assemble.js';
-import { curateSession } from '../context/curate.js';
+import { curateSession, renderSessionFull } from '../context/curate.js';
 import {
   renderTimeline, renderBrief, renderAnswers, renderDraft, latestDraftOrEdit, type RenderTurn,
 } from '../context/render.js';
@@ -31,15 +31,13 @@ type EditInput = z.infer<typeof EditDraftInput>;
 
 // ---- helpers ----
 
-function sessionTurns(db: DB, sessionId: string): RenderTurn[] {
-  return db.select().from(draftTurns).where(eq(draftTurns.sessionId, sessionId))
-    .orderBy(asc(draftTurns.position)).all()
-    .map((t) => ({ kind: t.kind, content: t.content as any }));
-}
-
 function rawTurns(db: DB, sessionId: string) {
   return db.select().from(draftTurns).where(eq(draftTurns.sessionId, sessionId))
     .orderBy(asc(draftTurns.position)).all();
+}
+
+function sessionTurns(db: DB, sessionId: string): RenderTurn[] {
+  return rawTurns(db, sessionId).map((t) => ({ kind: t.kind, content: t.content }));
 }
 
 function nextTurnPosition(db: DB, sessionId: string): number {
@@ -98,6 +96,8 @@ function priorCurated(db: DB, convId: string, excludeSessionId: string) {
   const sents = db.select().from(draftSessions)
     .where(and(eq(draftSessions.conversationId, convId), eq(draftSessions.status, 'sent')))
     .orderBy(asc(draftSessions.closedAt)).all()
+    // Defensive: the WHERE already excludes the current (open) session since it isn't 'sent';
+    // this guards against ever passing a just-finalized session id here.
     .filter((s) => s.id !== excludeSessionId);
   return sents.map((s) => curateSession({
     sessionId: s.id, summary: s.summary, turns: sessionTurns(db, s.id),
@@ -142,7 +142,7 @@ async function runAiRound(
     maxOutputTokens: getModelMeta(model).outputReserve,
   });
 
-  const created: any[] = [];
+  const created: ReturnType<typeof insertTurn>[] = [];
   if (result.output.answers) {
     created.push(insertTurn(db, sessionId, {
       role: 'assistant', kind: 'answers', content: result.output.answers,
@@ -226,8 +226,7 @@ export async function finalizeSession(db: DB, userId: string, sessionId: string,
 
   // Generate the summary from the curated triple using the conversation's model.
   const { model } = resolveProviderModel({ provider: conv.provider, model: conv.model }, deps.defaults);
-  const curated = curateSession({ sessionId, summary: 'pending', turns }); // build the full block
-  const summary = await generateSummary(deps.provider, model, curated.full);
+  const summary = await generateSummary(deps.provider, model, renderSessionFull(turns));
 
   db.update(draftSessions).set({
     status: 'sent', sentMessageId, summary, closedAt: new Date(),

@@ -53,20 +53,20 @@ export async function listMessages(db: DB, userId: string, convId: string) {
     .where(eq(messages.conversationId, convId)).orderBy(asc(messages.position)).all();
 }
 
-function ownedMessage(db: DB, userId: string, id: string) {
+function getMessage(db: DB, id: string) {
   const msg = db.select().from(messages).where(eq(messages.id, id)).get();
   if (!msg) throw new NotFoundError('Message');
   return msg;
 }
 
 export async function updateMessage(db: DB, userId: string, id: string, input: UpdateInput) {
-  const msg = ownedMessage(db, userId, id);
+  const msg = getMessage(db, id);
   await getConversation(db, userId, msg.conversationId);
   db.update(messages).set({ body: input.body }).where(eq(messages.id, id)).run();
 }
 
 export async function reorderMessage(db: DB, userId: string, id: string, input: ReorderInput) {
-  const msg = ownedMessage(db, userId, id);
+  const msg = getMessage(db, id);
   await getConversation(db, userId, msg.conversationId);
   const others = orderedPositions(db, msg.conversationId).filter((m) => m.id !== id);
   let position: number;
@@ -81,7 +81,7 @@ export async function reorderMessage(db: DB, userId: string, id: string, input: 
 }
 
 export async function deleteMessage(db: DB, userId: string, id: string) {
-  const msg = ownedMessage(db, userId, id);
+  const msg = getMessage(db, id);
   await getConversation(db, userId, msg.conversationId);
   db.delete(messages).where(eq(messages.id, id)).run();
 }
