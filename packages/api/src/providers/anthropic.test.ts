@@ -6,10 +6,15 @@ function makeHarness(): ContractHarness {
   let toolInput: unknown = { draft: { body: 'x' } };
   let text = '';
   let lastReq: any = null;
+  let queuedError: { status: number } | null = null;
+  const maybeThrow = () => {
+    if (queuedError) { throw Object.assign(new Error('simulated'), { status: queuedError.status }); }
+  };
   const client: any = {
     messages: {
       create: async (req: any) => {
         lastReq = req;
+        maybeThrow();
         if (req.tool_choice) {
           return { content: [{ type: 'tool_use', name: 'respond', input: toolInput }] };
         }
@@ -18,7 +23,7 @@ function makeHarness(): ContractHarness {
     },
     beta: {
       messages: {
-        countTokens: async (_req: any) => ({ input_tokens: 42 }),
+        countTokens: async (_req: any) => { maybeThrow(); return { input_tokens: 42 }; },
       },
     },
   };
@@ -27,6 +32,7 @@ function makeHarness(): ContractHarness {
     provider,
     simulateRespond: (raw) => { toolInput = raw; },
     simulateText: (t) => { text = t; },
+    simulateError: (status) => { queuedError = { status }; },
     lastCompleteRequest: () => lastReq,
   };
 }

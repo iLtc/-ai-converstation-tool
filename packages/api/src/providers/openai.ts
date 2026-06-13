@@ -8,6 +8,7 @@ import {
 import type {
   Provider, CompleteRequest, CompleteResult, CompleteTextRequest, CountTokensInput,
 } from './types.js';
+import { toProviderError } from './providerUtils.js';
 
 export class OpenAIProvider implements Provider {
   readonly name = 'openai' as const;
@@ -34,7 +35,7 @@ export class OpenAIProvider implements Provider {
         tool_choice: { type: 'function', function: { name: RESPOND_TOOL_NAME } },
       });
     } catch (err) {
-      throw toProviderError(err);
+      throw toProviderError('OpenAI request failed', err);
     }
     const call = res.choices?.[0]?.message?.tool_calls?.[0];
     if (!call) throw new ProviderError('OpenAI returned no tool call', false);
@@ -60,7 +61,7 @@ export class OpenAIProvider implements Provider {
         ],
       });
     } catch (err) {
-      throw toProviderError(err);
+      throw toProviderError('OpenAI request failed', err);
     }
     return res.choices?.[0]?.message?.content ?? '';
   }
@@ -71,10 +72,4 @@ export class OpenAIProvider implements Provider {
     const parts = [input.system, ...input.messages.map((m) => m.content)];
     return parts.reduce((sum, p) => sum + encode(p).length, 0);
   }
-}
-
-function toProviderError(err: unknown): ProviderError {
-  const status = (err as any)?.status;
-  const retryable = status === 429 || (typeof status === 'number' && status >= 500);
-  return new ProviderError(`OpenAI request failed: ${(err as Error).message}`, retryable);
 }

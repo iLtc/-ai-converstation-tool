@@ -7,6 +7,7 @@ import {
 import type {
   Provider, CompleteRequest, CompleteResult, CompleteTextRequest, CountTokensInput,
 } from './types.js';
+import { toProviderError } from './providerUtils.js';
 
 export class AnthropicProvider implements Provider {
   readonly name = 'anthropic' as const;
@@ -28,7 +29,7 @@ export class AnthropicProvider implements Provider {
         tool_choice: { type: 'tool', name: RESPOND_TOOL_NAME },
       });
     } catch (err) {
-      throw toProviderError(err);
+      throw toProviderError('Anthropic request failed', err);
     }
     const block = (res.content ?? []).find((b: any) => b.type === 'tool_use');
     if (!block) throw new ProviderError('Anthropic returned no tool_use block', false);
@@ -46,7 +47,7 @@ export class AnthropicProvider implements Provider {
         messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
       });
     } catch (err) {
-      throw toProviderError(err);
+      throw toProviderError('Anthropic request failed', err);
     }
     return (res.content ?? [])
       .filter((b: any) => b.type === 'text')
@@ -63,13 +64,7 @@ export class AnthropicProvider implements Provider {
       } as any);
       return res.input_tokens;
     } catch (err) {
-      throw toProviderError(err);
+      throw toProviderError('Anthropic request failed', err);
     }
   }
-}
-
-function toProviderError(err: unknown): ProviderError {
-  const status = (err as any)?.status;
-  const retryable = status === 429 || (typeof status === 'number' && status >= 500);
-  return new ProviderError(`Anthropic request failed: ${(err as Error).message}`, retryable);
 }

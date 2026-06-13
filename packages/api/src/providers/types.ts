@@ -21,12 +21,8 @@ export interface CompleteResult {
   model: string;
 }
 
-export interface CompleteTextRequest {
-  system: string;
-  messages: ProviderMessage[];
-  model: string;
-  maxOutputTokens: number;
-}
+/** Plain-text completion request — same shape as CompleteRequest. */
+export type CompleteTextRequest = CompleteRequest;
 
 export interface CountTokensInput {
   system: string;

@@ -8,6 +8,8 @@ export interface ContractHarness {
   simulateRespond(raw: unknown): void;
   /** Queue the plain text the fake SDK should return from completeText(). */
   simulateText(text: string): void;
+  /** Make the fake SDK throw on the next complete() call, with the given HTTP status. */
+  simulateError(status: number): void;
   /** The request object handed to the fake SDK on the last complete() call. */
   lastCompleteRequest(): any;
 }
@@ -26,15 +28,15 @@ export function runProviderContract(label: string, makeHarness: () => ContractHa
       expect(res.provider).toBe(h.provider.name);
     });
 
-    it('forces the respond tool on the request', async () => {
+    it('forces the respond tool via tool_choice', async () => {
       const h = makeHarness();
       h.simulateRespond({ draft: { body: 'x' } });
       await h.provider.complete({
         system: 's', messages: [{ role: 'user', content: 'hi' }],
         model: 'm', maxOutputTokens: 50,
       });
-      const sent = JSON.stringify(h.lastCompleteRequest());
-      expect(sent).toContain('respond'); // tool_choice names the respond tool
+      const req = h.lastCompleteRequest();
+      expect(JSON.stringify(req.tool_choice ?? null)).toContain('respond');
     });
 
     it('throws when the model returns a malformed draft', async () => {
@@ -62,6 +64,24 @@ export function runProviderContract(label: string, makeHarness: () => ContractHa
         system: 'system text', messages: [{ role: 'user', content: 'hello world' }], model: 'm',
       });
       expect(n).toBeGreaterThan(0);
+    });
+
+    it('wraps a rate-limit (429) error as retryable', async () => {
+      const h = makeHarness();
+      h.simulateError(429);
+      await expect(h.provider.complete({
+        system: 's', messages: [{ role: 'user', content: 'hi' }],
+        model: 'm', maxOutputTokens: 50,
+      })).rejects.toMatchObject({ retryable: true });
+    });
+
+    it('wraps a client (400) error as non-retryable', async () => {
+      const h = makeHarness();
+      h.simulateError(400);
+      await expect(h.provider.complete({
+        system: 's', messages: [{ role: 'user', content: 'hi' }],
+        model: 'm', maxOutputTokens: 50,
+      })).rejects.toMatchObject({ retryable: false });
     });
   });
 }

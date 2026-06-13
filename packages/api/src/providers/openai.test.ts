@@ -5,11 +5,13 @@ function makeHarness(): ContractHarness {
   let toolArgs: unknown = { draft: { body: 'x' } };
   let text = '';
   let lastReq: any = null;
+  let queuedError: { status: number } | null = null;
   const client: any = {
     chat: {
       completions: {
         create: async (req: any) => {
           lastReq = req;
+          if (queuedError) { throw Object.assign(new Error('simulated'), { status: queuedError.status }); }
           if (req.tools) {
             return {
               choices: [{
@@ -31,6 +33,7 @@ function makeHarness(): ContractHarness {
     provider,
     simulateRespond: (raw) => { toolArgs = raw; },
     simulateText: (t) => { text = t; },
+    simulateError: (status) => { queuedError = { status }; },
     lastCompleteRequest: () => lastReq,
   };
 }

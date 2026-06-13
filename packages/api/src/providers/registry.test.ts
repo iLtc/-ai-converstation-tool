@@ -22,4 +22,9 @@ describe('resolveProviderModel', () => {
   it('fails loud for an unknown model override', () => {
     expect(() => resolveProviderModel({ provider: null, model: 'nope' }, defaults)).toThrow(/unknown model/i);
   });
+
+  it('rejects a provider override that does not serve the model', () => {
+    expect(() => resolveProviderModel({ provider: 'anthropic', model: 'gpt-4o' }, defaults))
+      .toThrow(/does not serve/i);
+  });
 });
