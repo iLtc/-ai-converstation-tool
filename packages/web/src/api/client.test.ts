@@ -34,4 +34,15 @@ describe('apiFetch', () => {
     const err = await apiFetch('/v', { method: 'POST' }).catch((e) => e) as ApiError;
     expect(err.details).toEqual({ a: 1 });
   });
+
+  it('maps needs_manual_selection sessionIds (409)', async () => {
+    server.use(http.post('/api/m', () => HttpResponse.json(
+      { error: { code: 'needs_manual_selection', message: 'too long', sessionIds: ['id-1', 'id-2'] } },
+      { status: 409 },
+    )));
+    const err = await apiFetch('/m', { method: 'POST' }).catch((e) => e) as ApiError;
+    expect(err.code).toBe('needs_manual_selection');
+    expect(err.sessionIds).toEqual(['id-1', 'id-2']);
+    expect(err.status).toBe(409);
+  });
 });
