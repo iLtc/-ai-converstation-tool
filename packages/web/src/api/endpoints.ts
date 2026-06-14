@@ -4,14 +4,14 @@ import type {
 } from '@app/shared';
 import { apiFetch } from './client.ts';
 import type {
-  Conversation, Message, DraftSession, DraftTurn, SessionWithTurns, StyleProfile,
+  Conversation, ConversationSummary, Message, DraftSession, DraftTurn, SessionWithTurns, StyleProfile,
 } from './types.ts';
 
 const body = (v: unknown) => JSON.stringify(v);
 
 export const api = {
   // conversations
-  listConversations: () => apiFetch<Conversation[]>('/conversations'),
+  listConversations: () => apiFetch<ConversationSummary[]>('/conversations'),
   getConversation: (id: string) => apiFetch<Conversation>(`/conversations/${id}`),
   createConversation: (input: CreateConversationInput) =>
     apiFetch<Conversation>('/conversations', { method: 'POST', body: body(input) }),

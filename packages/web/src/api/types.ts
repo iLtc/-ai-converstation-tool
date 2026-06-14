@@ -6,12 +6,12 @@ import type {
 export interface Participant {
   id: string; conversationId: string; displayName: string; role: Role;
 }
-export interface Conversation {
+export interface ConversationSummary {
   id: string; userId: string; title: string; type: ConversationType;
   emailSubject: string | null; toneNote: string | null; styleProfileId: string | null;
   provider: string | null; model: string | null; createdAt: string; updatedAt: string;
-  participants: Participant[];
 }
+export type Conversation = ConversationSummary & { participants: Participant[] };
 export interface Message {
   id: string; conversationId: string; senderParticipantId: string; body: string;
   kind: MessageKind; status: MessageStatus; position: number; createdAt: string;
