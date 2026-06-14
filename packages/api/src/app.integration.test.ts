@@ -155,4 +155,37 @@ describe('full flow integration', () => {
     expect(body.error.code).toBe('validation_error');
     expect(body.error.details).toBeTruthy();
   });
+
+  it('PATCH /conversations/:id updates settings', async () => {
+    const app = makeApp([]);
+    const conv = await json(await app.request('/conversations', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'A', type: 'chat', theirName: 'Sam' }),
+    }));
+    const res = await app.request(`/conversations/${conv.id}`, {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'B', toneNote: 'warm', theirName: 'Samantha' }),
+    });
+    expect(res.status).toBe(200);
+    const updated = await json(res);
+    expect(updated.title).toBe('B');
+    expect(updated.toneNote).toBe('warm');
+    expect(updated.participants.find((p: any) => p.role === 'them').displayName).toBe('Samantha');
+  });
+
+  it('GET /conversations/:id/draft-sessions returns sessions with turns', async () => {
+    const app = makeApp([{ answers: { items: ['a'] }, draft: { body: 'd1' } }]);
+    const conv = await json(await app.request('/conversations', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'A', type: 'chat' }),
+    }));
+    await app.request(`/conversations/${conv.id}/draft-sessions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ brief: { goal: 'g' } }),
+    });
+    const out = await json(await app.request(`/conversations/${conv.id}/draft-sessions`));
+    expect(out.sessions).toHaveLength(1);
+    expect(out.sessions[0].status).toBe('open');
+    expect(out.sessions[0].turns.map((t: any) => t.kind)).toEqual(['brief', 'answers', 'draft']);
+  });
 });
