@@ -5,11 +5,17 @@ import { MemoryRouter } from 'react-router-dom';
 
 export function renderWithProviders(ui: ReactElement, { route = '/' } = {}) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity, gcTime: 0 },
+      mutations: { retry: false },
+    },
   });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return {
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+      </QueryClientProvider>,
+    ),
+    queryClient,
+  };
 }
