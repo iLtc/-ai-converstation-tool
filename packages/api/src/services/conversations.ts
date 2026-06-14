@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import type { z } from 'zod';
-import type { CreateConversationInput } from '@app/shared';
+import type { CreateConversationInput, UpdateConversationInput } from '@app/shared';
 import type { DB } from '../db/client.js';
 import { conversations, participants, styleProfiles } from '../db/schema.js';
 import { NotFoundError } from '../errors.js';
@@ -44,4 +44,35 @@ export async function getConversation(db: DB, userId: string, id: string) {
 
 export async function listConversations(db: DB, userId: string) {
   return db.select().from(conversations).where(eq(conversations.userId, userId)).all();
+}
+
+type UpdateInput = z.infer<typeof UpdateConversationInput>;
+
+export async function updateConversation(
+  db: DB, userId: string, id: string, input: UpdateInput,
+) {
+  await getConversation(db, userId, id); // authorize (throws NotFound)
+
+  if (input.styleProfileId) {
+    const owned = db.select().from(styleProfiles)
+      .where(and(eq(styleProfiles.id, input.styleProfileId), eq(styleProfiles.userId, userId))).get();
+    if (!owned) throw new NotFoundError('Style profile');
+  }
+
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  for (const key of ['title', 'type', 'emailSubject', 'toneNote', 'styleProfileId', 'provider', 'model'] as const) {
+    if (key in input) patch[key] = input[key];
+  }
+  db.update(conversations).set(patch).where(eq(conversations.id, id)).run();
+
+  if (input.myName !== undefined) {
+    db.update(participants).set({ displayName: input.myName })
+      .where(and(eq(participants.conversationId, id), eq(participants.role, 'me'))).run();
+  }
+  if (input.theirName !== undefined) {
+    db.update(participants).set({ displayName: input.theirName })
+      .where(and(eq(participants.conversationId, id), eq(participants.role, 'them'))).run();
+  }
+
+  return getConversation(db, userId, id);
 }

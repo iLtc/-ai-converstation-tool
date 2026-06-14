@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { CreateConversationInput } from '@app/shared';
+import { CreateConversationInput, UpdateConversationInput } from '@app/shared';
 import type { AppContext } from '../app.js';
 import { parseBody } from './validate.js';
-import { createConversation, getConversation, listConversations } from '../services/conversations.js';
+import { createConversation, getConversation, listConversations, updateConversation } from '../services/conversations.js';
 
 export function conversationRoutes() {
   const r = new Hono<AppContext>();
@@ -19,6 +19,12 @@ export function conversationRoutes() {
 
   r.get('/:id', async (c) => {
     return c.json(await getConversation(c.get('deps').db, c.get('userId'), c.req.param('id')));
+  });
+
+  r.patch('/:id', async (c) => {
+    const input = parseBody(UpdateConversationInput, await c.req.json());
+    const conv = await updateConversation(c.get('deps').db, c.get('userId'), c.req.param('id'), input);
+    return c.json(conv);
   });
 
   return r;
