@@ -121,6 +121,7 @@ describe('listDraftSessions', () => {
     const [s0, s1] = result.sessions;
     expect(s0!.id).toBe(first.session.id);
     expect(s0!.status).toBe('sent');
+    expect(s0!.turns.map((t) => t.kind)).toEqual(['brief', 'draft']);
     expect(s1!.id).toBe(second.session.id);
     expect(s1!.status).toBe('open');
     // No answers in the queued output → turns are brief + draft only
