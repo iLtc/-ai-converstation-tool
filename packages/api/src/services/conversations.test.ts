@@ -50,12 +50,12 @@ describe('updateConversation', () => {
     const db = createTestDb();
     const conv = await createConversation(db, 'u1', { title: 'A', type: 'chat' });
     await expect(updateConversation(db, 'u1', conv.id, { styleProfileId: 'nope' }))
-      .rejects.toThrow();
+      .rejects.toThrow(/not found/i);
   });
 
   it('throws NotFound for another user\'s conversation', async () => {
     const db = createTestDb();
     const conv = await createConversation(db, 'u1', { title: 'A', type: 'chat' });
-    await expect(updateConversation(db, 'u2', conv.id, { title: 'B' })).rejects.toThrow();
+    await expect(updateConversation(db, 'u2', conv.id, { title: 'B' })).rejects.toThrow(/not found/i);
   });
 });

@@ -59,8 +59,11 @@ export async function updateConversation(
     if (!owned) throw new NotFoundError('Style profile');
   }
 
-  const patch: Record<string, unknown> = { updatedAt: new Date() };
-  for (const key of ['title', 'type', 'emailSubject', 'toneNote', 'styleProfileId', 'provider', 'model'] as const) {
+  const patch: Partial<typeof conversations.$inferInsert> = { updatedAt: new Date() };
+  for (const key of ['title', 'type'] as const) {
+    if (key in input) patch[key] = input[key];
+  }
+  for (const key of ['emailSubject', 'toneNote', 'styleProfileId', 'provider', 'model'] as const) {
     if (key in input) patch[key] = input[key];
   }
   db.update(conversations).set(patch).where(eq(conversations.id, id)).run();
