@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createTestDb } from '../db/testDb.js';
 import { createConversation } from './conversations.js';
 import { addMessage, listMessages } from './messages.js';
-import { openDraftSession, addFollowup, editDraft, finalizeSession, abandonSession } from './draftSessions.js';
+import { openDraftSession, addFollowup, editDraft, finalizeSession, abandonSession, listDraftSessions } from './draftSessions.js';
 import type { Provider } from '../providers/types.js';
 import type { RespondOutput } from '@app/shared';
 
@@ -101,5 +101,34 @@ describe('draft sessions service', () => {
     const again = await openDraftSession(db, 'u1', convId, { brief: { goal: 'g2' } },
       deps([{ draft: { body: 'd2' } }]));
     expect(again.session.status).toBe('open');
+  });
+});
+
+describe('listDraftSessions', () => {
+  it('returns sessions oldest-first, each with its ordered turns', async () => {
+    const { db, convId } = await convWithHistory();
+    // Single deps object so the provider's queue is shared across all calls
+    const d = deps([
+      { draft: { body: 'first draft' } },  // consumed by first openDraftSession
+      { draft: { body: 'second draft' } }, // consumed by second openDraftSession
+    ]);
+    const first = await openDraftSession(db, 'u1', convId, { brief: { goal: 'g1' } }, d);
+    await finalizeSession(db, 'u1', first.session.id, d); // uses completeText only, no queue shift
+    const second = await openDraftSession(db, 'u1', convId, { brief: { goal: 'g2' } }, d);
+
+    const result = await listDraftSessions(db, 'u1', convId);
+    expect(result.sessions).toHaveLength(2);
+    const [s0, s1] = result.sessions;
+    expect(s0!.id).toBe(first.session.id);
+    expect(s0!.status).toBe('sent');
+    expect(s1!.id).toBe(second.session.id);
+    expect(s1!.status).toBe('open');
+    // No answers in the queued output → turns are brief + draft only
+    expect(s1!.turns.map((t) => t.kind)).toEqual(['brief', 'draft']);
+  });
+
+  it('authorizes by user (throws NotFound for another user)', async () => {
+    const { db, convId } = await convWithHistory();
+    await expect(listDraftSessions(db, 'u2', convId)).rejects.toThrow(/not found/i);
   });
 });

@@ -253,3 +253,12 @@ export async function abandonSession(db: DB, userId: string, sessionId: string) 
   db.update(draftSessions).set({ status: 'abandoned', closedAt: new Date() })
     .where(eq(draftSessions.id, sessionId)).run();
 }
+
+/** All draft sessions for a conversation (oldest-first), each with its ordered turns. */
+export async function listDraftSessions(db: DB, userId: string, convId: string) {
+  await getConversation(db, userId, convId); // authorize
+  const sessions = db.select().from(draftSessions)
+    .where(eq(draftSessions.conversationId, convId))
+    .orderBy(asc(draftSessions.createdAt)).all();
+  return { sessions: sessions.map((s) => ({ ...s, turns: rawTurns(db, s.id) })) };
+}

@@ -6,7 +6,7 @@ import { draftDepsFor } from '../app.js';
 import { parseBody } from './validate.js';
 import { getConversation } from '../services/conversations.js';
 import {
-  openDraftSession, addFollowup, editDraft, finalizeSession, abandonSession,
+  openDraftSession, addFollowup, editDraft, finalizeSession, abandonSession, listDraftSessions,
 } from '../services/draftSessions.js';
 import { draftSessions } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -54,6 +54,10 @@ export function draftSessionRoutes() {
   r.post('/draft-sessions/:id/abandon', async (c) => {
     await abandonSession(c.get('deps').db, c.get('userId'), c.req.param('id'));
     return c.body(null, 204);
+  });
+
+  r.get('/conversations/:id/draft-sessions', async (c) => {
+    return c.json(await listDraftSessions(c.get('deps').db, c.get('userId'), c.req.param('id')));
   });
 
   return r;
