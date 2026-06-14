@@ -90,3 +90,18 @@ export const CreateStyleProfileInput = z.object({
   description: z.string().optional(),
   instructions: z.string().min(1),
 });
+
+// Partial update of a conversation's settings. Every field optional; nullable
+// fields may be sent as null to clear them. The service applies only keys present.
+export const UpdateConversationInput = z.object({
+  title: z.string().min(1).optional(),
+  type: ConversationType.optional(),
+  emailSubject: z.string().nullable().optional(),
+  toneNote: z.string().nullable().optional(),
+  styleProfileId: z.string().nullable().optional(),
+  provider: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
+  theirName: z.string().min(1).optional(),
+  myName: z.string().min(1).optional(),
+});
+export type UpdateConversationInput = z.infer<typeof UpdateConversationInput>;

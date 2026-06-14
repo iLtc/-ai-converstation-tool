@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DraftContent, BriefContent, AnswersContent, FollowupContent, RespondOutput, contentSchemaForKind,
+  UpdateConversationInput,
 } from './schemas.js';
 
 describe('content schemas', () => {
@@ -29,5 +30,30 @@ describe('content schemas', () => {
     expect(contentSchemaForKind('draft')).toBe(DraftContent);
     expect(contentSchemaForKind('edit')).toBe(DraftContent);
     expect(contentSchemaForKind('followup')).toBe(FollowupContent);
+  });
+});
+
+describe('UpdateConversationInput', () => {
+  it('accepts an empty object (no-op patch)', () => {
+    expect(UpdateConversationInput.parse({})).toEqual({});
+  });
+
+  it('allows clearing nullable fields with null', () => {
+    const parsed = UpdateConversationInput.parse({
+      toneNote: null, styleProfileId: null, provider: null, model: null,
+    });
+    expect(parsed).toEqual({ toneNote: null, styleProfileId: null, provider: null, model: null });
+  });
+
+  it('accepts editable fields', () => {
+    const parsed = UpdateConversationInput.parse({
+      title: 'New', type: 'email', emailSubject: 'Hi', theirName: 'Sam', myName: 'Me',
+    });
+    expect(parsed.title).toBe('New');
+    expect(parsed.type).toBe('email');
+  });
+
+  it('rejects an empty title', () => {
+    expect(() => UpdateConversationInput.parse({ title: '' })).toThrow();
   });
 });
