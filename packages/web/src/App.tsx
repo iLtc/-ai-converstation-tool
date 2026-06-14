@@ -11,6 +11,7 @@ export default function App() {
         <Route path="/conversations" element={<EmptyState />} />
         <Route path="/conversations/:id" element={<ConversationStudio />} />
         <Route path="/style-profiles" element={<StyleProfilesPage />} />
+        <Route path="*" element={<Navigate to="/conversations" replace />} />
       </Route>
     </Routes>
   );
