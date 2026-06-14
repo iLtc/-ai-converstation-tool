@@ -40,9 +40,9 @@ describe('UpdateConversationInput', () => {
 
   it('allows clearing nullable fields with null', () => {
     const parsed = UpdateConversationInput.parse({
-      toneNote: null, styleProfileId: null, provider: null, model: null,
+      toneNote: null, styleProfileId: null, provider: null, model: null, emailSubject: null,
     });
-    expect(parsed).toEqual({ toneNote: null, styleProfileId: null, provider: null, model: null });
+    expect(parsed).toEqual({ toneNote: null, styleProfileId: null, provider: null, model: null, emailSubject: null });
   });
 
   it('accepts editable fields', () => {
@@ -55,5 +55,10 @@ describe('UpdateConversationInput', () => {
 
   it('rejects an empty title', () => {
     expect(() => UpdateConversationInput.parse({ title: '' })).toThrow();
+  });
+
+  it('rejects an empty theirName or myName', () => {
+    expect(() => UpdateConversationInput.parse({ theirName: '' })).toThrow();
+    expect(() => UpdateConversationInput.parse({ myName: '' })).toThrow();
   });
 });
