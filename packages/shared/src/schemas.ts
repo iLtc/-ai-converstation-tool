@@ -67,6 +67,7 @@ export const CreateConversationInput = z.object({
   theirName: z.string().optional(),
   myName: z.string().optional(),
 });
+export type CreateConversationInput = z.infer<typeof CreateConversationInput>;
 
 export const AddMessageInput = z.object({
   senderRole: Role,
@@ -75,11 +76,14 @@ export const AddMessageInput = z.object({
   status: MessageStatus.optional(),
   afterMessageId: z.string().optional(),
 });
+export type AddMessageInput = z.infer<typeof AddMessageInput>;
 
 export const UpdateMessageInput = z.object({ body: z.string().min(1) });
+export type UpdateMessageInput = z.infer<typeof UpdateMessageInput>;
 export const ReorderMessageInput = z.object({
   afterMessageId: z.string().nullable(),
 });
+export type ReorderMessageInput = z.infer<typeof ReorderMessageInput>;
 
 export const OpenDraftSessionInput = z.object({ brief: BriefContent });
 export const AddFollowupInput = z.object({ instruction: z.string().min(1) });
@@ -90,6 +94,7 @@ export const CreateStyleProfileInput = z.object({
   description: z.string().optional(),
   instructions: z.string().min(1),
 });
+export type CreateStyleProfileInput = z.infer<typeof CreateStyleProfileInput>;
 
 // Partial update of a conversation's settings. Every field optional; nullable
 // fields may be sent as null to clear them. The service applies only keys present.
