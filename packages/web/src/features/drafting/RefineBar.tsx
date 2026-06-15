@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/button.tsx';
 import { Textarea } from '../../components/ui/textarea.tsx';
 
 export function RefineBar({ onRefine, onFinalize, onAbandon, pending }: {
-  onRefine: (instruction: string) => void;
+  onRefine: (instruction: string, onSuccess: () => void) => void;
   onFinalize: () => void;
   onAbandon: () => void;
   pending: boolean;
@@ -12,8 +12,7 @@ export function RefineBar({ onRefine, onFinalize, onAbandon, pending }: {
 
   function refine() {
     if (!instruction.trim()) return;
-    onRefine(instruction.trim());
-    setInstruction('');
+    onRefine(instruction.trim(), () => setInstruction(''));
   }
 
   return (

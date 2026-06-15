@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import type { BriefContent, DraftContent } from '@app/shared';
 import type { Conversation, DraftTurn, SessionWithTurns } from '../../api/types.ts';
 import { Button } from '../../components/ui/button.tsx';
+import { Input } from '../../components/ui/input.tsx';
 import { Textarea } from '../../components/ui/textarea.tsx';
 import { Label } from '../../components/ui/label.tsx';
 import { ApiError } from '../../api/client.ts';
@@ -16,7 +17,7 @@ import { RefineBar } from './RefineBar.tsx';
 
 export function DraftWorkspace({ conversation }: { conversation: Conversation }) {
   const convId = conversation.id;
-  const { data, isLoading } = useDraftSessions(convId);
+  const { data, isLoading, isError } = useDraftSessions(convId);
   const open = useOpenDraftSession(convId);
   const followup = useAddFollowup(convId);
   const edit = useEditDraft(convId);
@@ -43,6 +44,10 @@ export function DraftWorkspace({ conversation }: { conversation: Conversation })
     return <div className="p-4 text-sm text-muted-foreground">Loading…</div>;
   }
 
+  if (isError) {
+    return <div className="p-4 text-sm text-destructive">Failed to load drafting sessions.</div>;
+  }
+
   if (!openSession) {
     return (
       <div className="flex h-full flex-col">
@@ -59,8 +64,8 @@ export function DraftWorkspace({ conversation }: { conversation: Conversation })
       conversation={conversation}
       session={openSession}
       pending={pending}
-      onRefine={(instruction) => followup.mutate({ sessionId: openSession.id, instruction }, { onError: handleError })}
-      onEdit={(draft) => edit.mutate({ sessionId: openSession.id, draft }, { onError: handleError })}
+      onRefine={(instruction, onDone) => followup.mutate({ sessionId: openSession.id, instruction }, { onSuccess: onDone, onError: handleError })}
+      onEdit={(draft, onDone) => edit.mutate({ sessionId: openSession.id, draft }, { onSuccess: onDone, onError: handleError })}
       onRestore={(turn) => edit.mutate({ sessionId: openSession.id, draft: turn.content as DraftContent }, { onError: handleError })}
       onFinalize={() => finalize.mutate(openSession.id, {
         onSuccess: () => toast.success('Sent — added to the timeline.'),
@@ -85,8 +90,8 @@ function OpenSessionView({
   conversation: Conversation;
   session: SessionWithTurns;
   pending: boolean;
-  onRefine: (instruction: string) => void;
-  onEdit: (draft: DraftContent) => void;
+  onRefine: (instruction: string, onSuccess: () => void) => void;
+  onEdit: (draft: DraftContent, onSuccess: () => void) => void;
   onRestore: (turn: DraftTurn) => void;
   onFinalize: () => void;
   onAbandon: () => void;
@@ -94,8 +99,9 @@ function OpenSessionView({
   const [editing, setEditing] = useState(false);
   const idx = currentDraftIndex(session.turns);
   const current = idx >= 0 ? (session.turns[idx]!.content as DraftContent) : null;
-  const [body, setBody] = useState(current?.body ?? '');
-  const [subject, setSubject] = useState(current?.subject ?? '');
+  // Seeded from the latest draft by beginEdit() each time the editor opens.
+  const [body, setBody] = useState('');
+  const [subject, setSubject] = useState('');
 
   function beginEdit() {
     setBody(current?.body ?? '');
@@ -103,8 +109,7 @@ function OpenSessionView({
     setEditing(true);
   }
   function saveEdit() {
-    onEdit({ body, ...(conversation.type === 'email' && subject ? { subject } : {}) });
-    setEditing(false);
+    onEdit({ body, ...(conversation.type === 'email' && subject ? { subject } : {}) }, () => setEditing(false));
   }
 
   return (
@@ -117,7 +122,7 @@ function OpenSessionView({
             {conversation.type === 'email' && (
               <div className="space-y-1">
                 <Label htmlFor="edit-subject">Subject</Label>
-                <input id="edit-subject" className="w-full rounded border px-2 py-1 text-sm"
+                <Input id="edit-subject"
                   value={subject} onChange={(e) => setSubject(e.target.value)} />
               </div>
             )}
@@ -134,7 +139,7 @@ function OpenSessionView({
           </div>
         )}
       </div>
-      <RefineBar onRefine={onRefine} onFinalize={onFinalize} onAbandon={onAbandon} pending={pending} />
+      {!editing && <RefineBar onRefine={onRefine} onFinalize={onFinalize} onAbandon={onAbandon} pending={pending} />}
     </div>
   );
 }
