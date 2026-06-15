@@ -24,4 +24,5 @@ it('renders messages with sender names', async () => {
   expect(await screen.findByText('Hi there')).toBeInTheDocument();
   expect(await screen.findByText('Hello back')).toBeInTheDocument();
   expect(screen.getByText('Sam')).toBeInTheDocument();
+  expect(screen.getByText('Me')).toBeInTheDocument();
 });

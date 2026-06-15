@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Pencil, Trash2, Check, X, GripVertical } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -28,7 +29,7 @@ export function MessageItem(
           <div className="space-y-2">
             <Textarea value={body} onChange={(e) => setBody(e.target.value)} className="text-foreground" />
             <div className="flex gap-1">
-              <Button size="sm" onClick={() => update.mutate({ id: message.id, input: { body } }, { onSuccess: () => setEditing(false) })}>
+              <Button size="sm" disabled={!body.trim() || update.isPending} onClick={() => update.mutate({ id: message.id, input: { body } }, { onSuccess: () => setEditing(false), onError: (e: Error) => toast.error(e.message) })}>
                 <Check className="h-3 w-3" />
               </Button>
               <Button size="sm" variant="ghost" onClick={() => { setBody(message.body); setEditing(false); }}>
@@ -43,10 +44,10 @@ export function MessageItem(
           <button {...attributes} {...listeners} className="cursor-grab p-1 text-muted-foreground" aria-label="Drag to reorder">
             <GripVertical className="h-3 w-3" />
           </button>
-          <button className="p-1 text-muted-foreground" aria-label="Edit" onClick={() => setEditing(true)}>
+          <button className="p-1 text-muted-foreground" aria-label="Edit" onClick={() => { setBody(message.body); setEditing(true); }}>
             <Pencil className="h-3 w-3" />
           </button>
-          <button className="p-1 text-muted-foreground" aria-label="Delete" onClick={() => del.mutate(message.id)}>
+          <button className="p-1 text-muted-foreground" aria-label="Delete" disabled={del.isPending} onClick={() => del.mutate(message.id, { onError: (e: Error) => toast.error(e.message) })}>
             <Trash2 className="h-3 w-3" />
           </button>
         </div>

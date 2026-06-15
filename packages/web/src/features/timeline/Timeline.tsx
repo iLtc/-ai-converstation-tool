@@ -8,7 +8,7 @@ import { PasteReplyButton } from './PasteReplyButton.tsx';
 
 export function Timeline({ conversation }: { conversation: Conversation }) {
   const convId = conversation.id;
-  const { data: messages = [], isLoading } = useMessages(convId);
+  const { data: messages = [], isLoading, isError } = useMessages(convId);
   const reorder = useReorderMessage(convId);
   const byParticipant = new Map(conversation.participants.map((p) => [p.id, p]));
 
@@ -18,9 +18,9 @@ export function Timeline({ conversation }: { conversation: Conversation }) {
     const ids = messages.map((m) => m.id);
     const from = ids.indexOf(active.id as string);
     const to = ids.indexOf(over.id as string);
+    if (from === -1 || to === -1) return;
     const reordered = arrayMove(messages, from, to);
-    const newIndex = reordered.findIndex((m) => m.id === active.id);
-    const afterMessageId = newIndex === 0 ? null : reordered[newIndex - 1]!.id;
+    const afterMessageId = to === 0 ? null : reordered[to - 1]!.id;
     reorder.mutate({ id: active.id as string, input: { afterMessageId } });
   }
 
@@ -31,7 +31,9 @@ export function Timeline({ conversation }: { conversation: Conversation }) {
         <PasteReplyButton convId={convId} />
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
-        {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+        {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : isError ? (
+          <p className="text-sm text-destructive">Failed to load messages.</p>
+        ) : (
           <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={messages.map((m) => m.id)} strategy={verticalListSortingStrategy}>
               {messages.map((m) => (
@@ -40,7 +42,7 @@ export function Timeline({ conversation }: { conversation: Conversation }) {
             </SortableContext>
           </DndContext>
         )}
-        {!isLoading && messages.length === 0 && (
+        {!isLoading && !isError && messages.length === 0 && (
           <p className="text-sm text-muted-foreground">No messages yet. Add the conversation history below.</p>
         )}
       </div>
