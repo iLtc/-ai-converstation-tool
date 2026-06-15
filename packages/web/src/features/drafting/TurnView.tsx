@@ -25,7 +25,7 @@ export function TurnView({ turn, isCurrentDraft, onRestore }: {
           <button className="text-[10px] text-sky-700 hover:underline" onClick={onRestore}>↺ restore</button>
         )}
       </div>
-      <div className={cn('rounded-lg border p-3 text-sm', tone, !isCurrentDraft && (turn.kind === 'draft') && 'opacity-70')}>
+      <div className={cn('rounded-lg border p-3 text-sm', tone, !isCurrentDraft && (turn.kind === 'draft' || turn.kind === 'edit') && 'opacity-70')}>
         {renderContent(turn)}
       </div>
     </div>
