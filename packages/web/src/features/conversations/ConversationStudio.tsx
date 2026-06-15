@@ -14,7 +14,7 @@ export function ConversationStudio() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (isLoading) return <div className="p-6 text-muted-foreground">Loading…</div>;
-  if (isError || !conversation) return <div className="p-6 text-muted-foreground">Conversation not found.</div>;
+  if (isError || !conversation) return <div className="p-6 text-muted-foreground">Couldn't load this conversation.</div>;
 
   return (
     <div className="flex h-full flex-col">
