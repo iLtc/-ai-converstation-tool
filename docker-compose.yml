@@ -16,5 +16,14 @@ services:
     volumes:
       - app-data:/data
 
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
 volumes:
   app-data:
