@@ -135,7 +135,7 @@ function OpenSessionView({
         )}
         {!editing && current && (
           <div className="mt-3">
-            <Button size="sm" variant="outline" onClick={beginEdit}>Edit draft</Button>
+            <Button size="sm" variant="outline" onClick={beginEdit} disabled={pending}>Edit draft</Button>
           </div>
         )}
       </div>

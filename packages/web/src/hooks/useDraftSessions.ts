@@ -43,6 +43,9 @@ export function useFinalizeSession(convId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.draftSessions(convId) });
       qc.invalidateQueries({ queryKey: queryKeys.messages(convId) });
+      // Finalize can update the conversation (e.g. emailSubject, updatedAt).
+      qc.invalidateQueries({ queryKey: queryKeys.conversation(convId) });
+      qc.invalidateQueries({ queryKey: queryKeys.conversations });
     },
   });
 }
