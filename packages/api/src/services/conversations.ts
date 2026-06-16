@@ -53,7 +53,9 @@ export async function updateConversation(
 ) {
   await getConversation(db, userId, id); // authorize (throws NotFound)
 
-  if (input.styleProfileId) {
+  // `!= null` (not a falsy check) so an empty-string id is validated rather than
+  // silently written as an invalid FK; `null` still passes through as a clear.
+  if (input.styleProfileId != null) {
     const owned = db.select().from(styleProfiles)
       .where(and(eq(styleProfiles.id, input.styleProfileId), eq(styleProfiles.userId, userId))).get();
     if (!owned) throw new NotFoundError('Style profile');
@@ -66,7 +68,8 @@ export async function updateConversation(
   for (const key of ['emailSubject', 'toneNote', 'styleProfileId', 'provider', 'model'] as const) {
     if (key in input) patch[key] = input[key];
   }
-  db.update(conversations).set(patch).where(eq(conversations.id, id)).run();
+  db.update(conversations).set(patch)
+    .where(and(eq(conversations.id, id), eq(conversations.userId, userId))).run();
 
   if (input.myName !== undefined) {
     db.update(participants).set({ displayName: input.myName })
